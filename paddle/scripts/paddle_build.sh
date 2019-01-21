@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 #=================================================
 #                   Utils
 #=================================================
@@ -27,8 +26,6 @@ function print_usage() {
 
     echo -e "\n${RED}Options${NONE}:
     ${BLUE}build${NONE}: run build for x86 platform
-    ${BLUE}build_android${NONE}: run build for android platform
-    ${BLUE}build_ios${NONE}: run build for ios platform
     ${BLUE}test${NONE}: run all unit tests
     ${BLUE}single_test${NONE}: run a single unit test
     ${BLUE}bind_test${NONE}: parallel tests bind to different GPU
@@ -79,6 +76,7 @@ function cmake_gen() {
                 PYTHON_FLAGS="-DPYTHON_EXECUTABLE:FILEPATH=/Library/Frameworks/Python.framework/Versions/2.7/bin/python2.7
             -DPYTHON_INCLUDE_DIR:PATH=/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7
             -DPYTHON_LIBRARY:FILEPATH=/Library/Frameworks/Python.framework/Versions/2.7/lib/libpython2.7.dylib"
+            pip install --user -r ${PADDLE_ROOT}/python/requirements.txt
             else
                 exit 1
             fi
@@ -91,6 +89,7 @@ function cmake_gen() {
             -DPYTHON_INCLUDE_DIR:PATH=/Library/Frameworks/Python.framework/Versions/3.5/include/python3.5m/
             -DPYTHON_LIBRARY:FILEPATH=/Library/Frameworks/Python.framework/Versions/3.5/lib/libpython3.5m.dylib"
                 WITH_FLUID_ONLY=${WITH_FLUID_ONLY:-ON}
+                pip3.5 install --user -r ${PADDLE_ROOT}/python/requirements.txt
             else
                 exit 1
             fi
@@ -103,6 +102,7 @@ function cmake_gen() {
             -DPYTHON_INCLUDE_DIR:PATH=/Library/Frameworks/Python.framework/Versions/3.6/include/python3.6m/
             -DPYTHON_LIBRARY:FILEPATH=/Library/Frameworks/Python.framework/Versions/3.6/lib/libpython3.6m.dylib"
                 WITH_FLUID_ONLY=${WITH_FLUID_ONLY:-ON}
+                pip3.6 install --user -r ${PADDLE_ROOT}/python/requirements.txt
             else
                 exit 1
             fi
@@ -115,6 +115,7 @@ function cmake_gen() {
             -DPYTHON_INCLUDE_DIR:PATH=/Library/Frameworks/Python.framework/Versions/3.7/include/python3.7m/
             -DPYTHON_LIBRARY:FILEPATH=/Library/Frameworks/Python.framework/Versions/3.7/lib/libpython3.7m.dylib"
                 WITH_FLUID_ONLY=${WITH_FLUID_ONLY:-ON}
+                pip3.7 install --user -r ${PADDLE_ROOT}/python/requirements.txt
             else
                 exit 1
             fi
@@ -196,6 +197,7 @@ function cmake_gen() {
         -DANAKIN_BUILD_CROSS_PLANTFORM=${ANAKIN_BUILD_CROSS_PLANTFORM:ON}
         -DPY_VERSION=${PY_VERSION:-2.7}
         -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX:-/paddle/build}
+        -DWITH_JEMALLOC=${WITH_JEMALLOC:-OFF}
     ========================================
 EOF
     # Disable UNITTEST_USE_VIRTUALENV in docker because
@@ -229,7 +231,8 @@ EOF
         -DANAKIN_BUILD_FAT_BIN=${ANAKIN_BUILD_FAT_BIN:OFF}\
         -DANAKIN_BUILD_CROSS_PLANTFORM=${ANAKIN_BUILD_CROSS_PLANTFORM:ON}\
         -DPY_VERSION=${PY_VERSION:-2.7} \
-        -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX:-/paddle/build}
+        -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX:-/paddle/build} \
+        -DWITH_JEMALLOC=${WITH_JEMALLOC:-OFF}
 
 }
 
@@ -296,110 +299,6 @@ EOF
     make install -j 8
 }
 
-function build_android() {
-    if [ $ANDROID_ABI == "arm64-v8a" ]; then
-      ANDROID_ARCH=arm64
-      if [ $ANDROID_API -lt 21 ]; then
-        echo "Warning: arm64-v8a requires ANDROID_API >= 21."
-        ANDROID_API=21
-      fi
-    else # armeabi, armeabi-v7a
-      ANDROID_ARCH=arm
-    fi
-
-    ANDROID_STANDALONE_TOOLCHAIN=$ANDROID_TOOLCHAINS_DIR/$ANDROID_ARCH-android-$ANDROID_API
-
-    cat <<EOF
-    ============================================
-    Generating the standalone toolchain ...
-    ${ANDROID_NDK_HOME}/build/tools/make-standalone-toolchain.sh
-          --arch=$ANDROID_ARCH
-          --platform=android-$ANDROID_API
-          --install-dir=${ANDROID_STANDALONE_TOOLCHAIN}
-    ============================================
-EOF
-    ${ANDROID_NDK_HOME}/build/tools/make-standalone-toolchain.sh \
-          --arch=$ANDROID_ARCH \
-          --platform=android-$ANDROID_API \
-          --install-dir=$ANDROID_STANDALONE_TOOLCHAIN
-
-    BUILD_ROOT=${PADDLE_ROOT}/build_android
-    DEST_ROOT=${PADDLE_ROOT}/install_android
-
-    mkdir -p $BUILD_ROOT
-    cd $BUILD_ROOT
-
-    if [ $ANDROID_ABI == "armeabi-v7a" ]; then
-      cmake -DCMAKE_SYSTEM_NAME=Android \
-            -DANDROID_STANDALONE_TOOLCHAIN=$ANDROID_STANDALONE_TOOLCHAIN \
-            -DANDROID_ABI=$ANDROID_ABI \
-            -DANDROID_ARM_NEON=ON \
-            -DANDROID_ARM_MODE=ON \
-            -DHOST_C_COMPILER=/usr/bin/gcc \
-            -DHOST_CXX_COMPILER=/usr/bin/g++ \
-            -DCMAKE_INSTALL_PREFIX=$DEST_ROOT \
-            -DCMAKE_BUILD_TYPE=MinSizeRel \
-            -DUSE_EIGEN_FOR_BLAS=ON \
-            -DWITH_C_API=ON \
-            -DWITH_SWIG_PY=OFF \
-            ..
-    elif [ $ANDROID_ABI == "arm64-v8a" ]; then
-      cmake -DCMAKE_SYSTEM_NAME=Android \
-            -DANDROID_STANDALONE_TOOLCHAIN=$ANDROID_STANDALONE_TOOLCHAIN \
-            -DANDROID_ABI=$ANDROID_ABI \
-            -DANDROID_ARM_MODE=ON \
-            -DHOST_C_COMPILER=/usr/bin/gcc \
-            -DHOST_CXX_COMPILER=/usr/bin/g++ \
-            -DCMAKE_INSTALL_PREFIX=$DEST_ROOT \
-            -DCMAKE_BUILD_TYPE=MinSizeRel \
-            -DUSE_EIGEN_FOR_BLAS=OFF \
-            -DWITH_C_API=ON \
-            -DWITH_SWIG_PY=OFF \
-            ..
-    elif [ $ANDROID_ABI == "armeabi" ]; then
-      cmake -DCMAKE_SYSTEM_NAME=Android \
-            -DANDROID_STANDALONE_TOOLCHAIN=$ANDROID_STANDALONE_TOOLCHAIN \
-            -DANDROID_ABI=$ANDROID_ABI \
-            -DANDROID_ARM_MODE=ON \
-            -DHOST_C_COMPILER=/usr/bin/gcc \
-            -DHOST_CXX_COMPILER=/usr/bin/g++ \
-            -DCMAKE_INSTALL_PREFIX=$DEST_ROOT \
-            -DCMAKE_BUILD_TYPE=MinSizeRel \
-            -DWITH_C_API=ON \
-            -DWITH_SWIG_PY=OFF \
-            ..
-    else
-      echo "Invalid ANDROID_ABI: $ANDROID_ABI"
-    fi
-
-    cat <<EOF
-    ============================================
-    Building in $BUILD_ROOT ...
-    ============================================
-EOF
-    make -j `nproc`
-    make install -j `nproc`
-}
-
-function build_ios() {
-    # Create the build directory for CMake.
-    mkdir -p ${PADDLE_ROOT}/build
-    cd ${PADDLE_ROOT}/build
-
-    # Compile paddle binaries
-    cmake .. \
-          -DCMAKE_SYSTEM_NAME=iOS \
-          -DIOS_PLATFORM=OS \
-          -DCMAKE_OSX_ARCHITECTURES="arm64" \
-          -DWITH_C_API=ON \
-          -DUSE_EIGEN_FOR_BLAS=ON \
-          -DWITH_TESTING=OFF \
-          -DWITH_SWIG_PY=OFF \
-          -DCMAKE_BUILD_TYPE=Release
-
-    make -j 2
-}
-
 function run_test() {
     mkdir -p ${PADDLE_ROOT}/build
     cd ${PADDLE_ROOT}/build
@@ -413,13 +312,6 @@ EOF
             ctest -V
         else
             ctest --output-on-failure
-        fi
-
-        # make install should also be test when unittest
-        make install -j `nproc`
-        pip install ${INSTALL_PREFIX:-/paddle/build}/opt/paddle/share/wheels/*.whl
-        if [[ ${WITH_FLUID_ONLY:-OFF} == "OFF" ]] ; then
-            paddle version
         fi
     fi
 }
@@ -441,9 +333,9 @@ EOF
         # make install should also be test when unittest
         make install -j 8
         if [ "$1" == "cp27-cp27m" ]; then
-            pip install --user ${INSTALL_PREFIX:-/paddle/build}/opt/paddle/share/wheels/*.whl
             set -e
-            python -c "import paddle.fluid"
+            pip install --user ${INSTALL_PREFIX:-/paddle/build}/opt/paddle/share/wheels/*.whl
+            python ${PADDLE_ROOT}/paddle/scripts/installation_validate.py
         elif [ "$1" == "cp35-cp35m" ]; then
             pip3.5 install --user ${INSTALL_PREFIX:-/paddle/build}/opt/paddle/share/wheels/*.whl
         elif [ "$1" == "cp36-cp36m" ]; then
@@ -451,7 +343,7 @@ EOF
         elif [ "$1" == "cp37-cp37m" ]; then
             pip3.7 install --user ${INSTALL_PREFIX:-/paddle/build}/opt/paddle/share/wheels/*.whl
         fi
-      
+
         if [[ ${WITH_FLUID_ONLY:-OFF} == "OFF" ]] ; then
             paddle version
         fi
@@ -492,7 +384,8 @@ function assert_api_spec_approvals() {
         BRANCH="develop"
     fi
 
-    API_FILES=("paddle/fluid/API.spec"
+    API_FILES=("cmake/external"
+               "paddle/fluid/API.spec"
                "paddle/fluid/framework/operator.h"
                "paddle/fluid/framework/tensor.h"
                "paddle/fluid/framework/lod_tensor.h"
@@ -511,14 +404,38 @@ function assert_api_spec_approvals() {
       if [ ${API_CHANGE} ] && [ "${GIT_PR_ID}" != "" ]; then
           # NOTE: per_page=10000 should be ok for all cases, a PR review > 10000 is not human readable.
           APPROVALS=`curl -H "Authorization: token ${GITHUB_API_TOKEN}" https://api.github.com/repos/PaddlePaddle/Paddle/pulls/${GIT_PR_ID}/reviews?per_page=10000 | \
-          python ${PADDLE_ROOT}/tools/check_pr_approval.py 2 7845005 2887803 728699 13348433`
+          python ${PADDLE_ROOT}/tools/check_pr_approval.py 1 2887803`
           echo "current pr ${GIT_PR_ID} got approvals: ${APPROVALS}"
           if [ "${APPROVALS}" == "FALSE" ]; then
-              echo "You must have at least 2 approvals for the api change! ${API_FILE}"
-          exit 1
+              echo "You must have panyx0718 approval for the api change! ${API_FILE}"
+              exit 1
           fi
       fi
     done
+
+    HAS_CONST_CAST=`git diff -U0 upstream/$BRANCH |grep -o -m 1 "const_cast" || true`
+    if [ ${HAS_CONST_CAST} ] && [ "${GIT_PR_ID}" != "" ]; then
+        APPROVALS=`curl -H "Authorization: token ${GITHUB_API_TOKEN}" https://api.github.com/repos/PaddlePaddle/Paddle/pulls/${GIT_PR_ID}/reviews?per_page=10000 | \
+        python ${PADDLE_ROOT}/tools/check_pr_approval.py 1 2887803`
+        echo "current pr ${GIT_PR_ID} got approvals: ${APPROVALS}"
+        if [ "${APPROVALS}" == "FALSE" ]; then
+            echo "You must have panyx0718 approval for the const_cast"
+            exit 1
+        fi
+    fi
+
+    pip install ${PADDLE_ROOT}/build/opt/paddle/share/wheels/*.whl
+    CHECK_DOCK_MD5=`python ${PADDLE_ROOT}/tools/check_doc_approval.py`
+    if [ "True" != ${CHECK_DOCK_MD5} ]; then
+        APPROVALS=`curl -H "Authorization: token ${GITHUB_API_TOKEN}" https://api.github.com/repos/PaddlePaddle/Paddle/pulls/${GIT_PR_ID}/reviews?per_page=10000 | \
+        python ${PADDLE_ROOT}/tools/check_pr_approval.py 1 35982308`
+        echo "current pr ${GIT_PR_ID} got approvals: ${APPROVALS}"
+        if [ "${APPROVALS}" == "FALSE" ]; then
+            echo "You must have shanyi15 approval for the api doc change! "
+            exit 1
+        fi
+        echo ${CHECK_DOCK_MD5} >/root/.cache/doc_md5.txt
+    fi
 }
 
 
@@ -616,7 +533,7 @@ EOF
     case $LIB_TYPE in
       full)
         # Build full Paddle Python module. Will timeout without caching 'copy_paddle_pybind' first
-        make -j `nproc` gen_proto_py framework_py_proto copy_paddle_pybind paddle_python
+        make -j `nproc` framework_py_proto copy_paddle_pybind paddle_python
         ;;
       pybind)
         # Build paddle pybind library. Takes 49 minutes to build. Might timeout
@@ -853,12 +770,6 @@ function main() {
         build
         gen_dockerfile ${PYTHON_ABI:-""}
         ;;
-      build_android)
-        build_android
-        ;;
-      build_ios)
-        build_ios
-        ;;
       test)
         run_test
         ;;
@@ -906,6 +817,7 @@ function main() {
         ;;
       assert_api)
         assert_api_not_changed ${PYTHON_ABI:-""}
+        assert_api_spec_approvals
         ;;
       test_inference)
         gen_capi_package
@@ -929,6 +841,15 @@ function main() {
         build
         run_test
         assert_api_not_changed ${PYTHON_ABI:-""}
+        ;;
+      cmake_gen)
+        cmake_gen ${PYTHON_ABI:-""}
+        ;;
+      gen_fluid_lib)
+        gen_fluid_lib
+        ;;
+      test_fluid_lib)
+        test_fluid_lib
         ;;
       *)
         print_usage

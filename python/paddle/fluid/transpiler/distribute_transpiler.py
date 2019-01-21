@@ -125,14 +125,23 @@ def slice_variable(var_list, slice_count, min_block_size):
 
 class DistributeTranspilerConfig(object):
     """
-    Args:
-        slice_var_up (bool): Do Tensor slice for pservers, default is True.
-        split_method (PSDispatcher): RoundRobin or HashName can be used
-          try to choose the best method to balance loads for pservers.
-        min_block_size (int): Minimum splitted element number in block.
-          According:https://github.com/PaddlePaddle/Paddle/issues/8638#issuecomment-369912156
+    .. py:attribute:: slice_var_up (bool)
+
+          Do Tensor slice for pservers, default is True.
+
+    .. py:attribute:: split_method (PSDispatcher)
+
+          RoundRobin or HashName can be used.
+          Try to choose the best method to balance loads for pservers.
+
+    .. py:attribute:: min_block_size (int)
+
+          Minimum number of splitted elements in block.
+
+          According to : https://github.com/PaddlePaddle/Paddle/issues/8638#issuecomment-369912156
           We can use bandwidth effiently when data size is larger than 2MB.If you
-          want to change it, please be sure you see the slice_variable function.
+          want to change it, please be sure you have read the slice_variable function.
+
     """
 
     slice_var_up = True
@@ -142,6 +151,7 @@ class DistributeTranspilerConfig(object):
     # supported modes: pserver, nccl2
     mode = "pserver"
     print_log = False
+    wait_port = True
 
 
 class DistributeTranspiler(object):
@@ -171,7 +181,6 @@ class DistributeTranspiler(object):
             trainer_id = 0
             trainers = 4
             role = os.getenv("PADDLE_TRAINING_ROLE")
-	     
             t = fluid.DistributeTranspiler()
             t.transpile(
                  trainer_id, pservers=pserver_endpoints, trainers=trainers)
@@ -214,13 +223,16 @@ class DistributeTranspiler(object):
                          trainer_id,
                          trainers,
                          current_endpoint,
-                         startup_program=None):
+                         startup_program=None,
+                         wait_port=True):
         if not startup_program:
             startup_program = default_startup_program()
         if trainer_id >= 0:
             worker_endpoints = trainers.split(",")
             # send NCCL_ID to others or recv from trainer 0
             worker_endpoints.remove(current_endpoint)
+            if trainer_id == 0 and wait_port:
+                wait_server_ready(worker_endpoints)
 
             nccl_id_var = startup_program.global_block().create_var(
                 name="NCCLID", persistable=True, type=core.VarDesc.VarType.RAW)
@@ -239,11 +251,10 @@ class DistributeTranspiler(object):
 
     def _get_all_remote_sparse_update_op(self, main_program):
         sparse_update_ops = []
-        sparse_update_op_types = ["lookup_table"]
+        sparse_update_op_types = ["lookup_table", "nce", "hierarchical_sigmoid"]
         for op in main_program.global_block().ops:
             if op.type in sparse_update_op_types and op.attr(
-                    'remote_prefetch') is True and not op.attr(
-                        'is_distributed'):
+                    'remote_prefetch') is True:
                 sparse_update_ops.append(op)
         return sparse_update_ops
 
@@ -302,11 +313,13 @@ class DistributeTranspiler(object):
 
         if self.config.mode == "nccl2":
             assert (isinstance(trainers, str))
+            self.origin_program._trainers_endpoints = trainers.split(",")
             self._transpile_nccl2(
                 trainer_id,
                 trainers,
                 current_endpoint,
-                startup_program=startup_program)
+                startup_program=startup_program,
+                wait_port=self.config.wait_port)
             return
 
         self.trainer_num = trainers
@@ -652,9 +665,6 @@ class DistributeTranspiler(object):
         # NOTE: assume blocks of the same variable is not distributed
         # on the same pserver, only change param/grad varnames for
         # trainers to fetch.
-        sys.stderr.write("get_pserver_program() is deprecated, call \
-get_pserver_programs() to get pserver main and startup \
-in a single call.")
         # step1
         pserver_program = Program()
         pserver_program.random_seed = self.origin_program.random_seed
@@ -742,12 +752,6 @@ in a single call.")
             elif op not in lr_ops:
                 self._append_pserver_non_opt_ops(block, op)
 
-        def __op_have_grad_input__(op):
-            for varname in op.input_arg_names:
-                if varname.find("@GRAD") >= 0:
-                    return varname
-            return ""
-
         def __clone_lr_op_sub_block__(op, program, lr_block):
             if not op.has_attr('sub_block'):
                 return
@@ -798,7 +802,7 @@ in a single call.")
             merged_var = None
             for _, op in enumerate(self.optimize_ops):
                 # find the origin grad var before clipping/L2Decay,
-                # merged_var should be the input var name of L2Decaybuil
+                # merged_var should be the input var name of L2Decay
                 grad_varname_for_block = op.attr(OP_ROLE_VAR_ATTR_NAME)[1]
                 if op.attr(OP_ROLE_VAR_ATTR_NAME)[
                         0] == optimize_target_param_name:
@@ -922,18 +926,6 @@ in a single call.")
         Returns:
             Program: parameter server side startup program.
         """
-        sys.stderr.write("get_startup_program() is deprecated, call \
-get_pserver_programs() to get pserver main and startup \
-in a single call.")
-        if pserver_program != None:
-            sys.stderr.write("passing pserver_program to get_startup_program() \
-is deprecated, you can use new API get_pserver_programs() to \
-get both pserver main program and startup program.")
-        if startup_program != None:
-            sys.stderr.write("passing startup_program to get_startup_program() \
-is deprecated, use fluid.program_guard() or pass this argument \
-to transpile() call.")
-
         s_prog = Program()
         orig_s_prog = self.startup_program
         s_prog.random_seed = orig_s_prog.random_seed
@@ -1686,7 +1678,16 @@ to transpile() call.")
                 if self.config.enable_dc_asgd:
                     new_inputs[key] = dc
                 else:
-                    new_inputs[key] = merged_var
+                    # Note!! This is for l2decay on sparse gradient, because it will create a new tensor for
+                    # decayed gradient but not inplace modify the origin one
+                    origin_grad_name = opt_op.input(key)[0]
+                    if core.kNewGradSuffix(
+                    ) in origin_grad_name and pserver_block.has_var(
+                            origin_grad_name):
+                        new_grad = pserver_block.var(origin_grad_name)
+                        new_inputs[key] = new_grad
+                    else:
+                        new_inputs[key] = merged_var
             elif key == "Param":
                 param_block = _get_param_block(opt_op)
                 if not param_block:
