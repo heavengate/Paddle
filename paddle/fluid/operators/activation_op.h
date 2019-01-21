@@ -38,8 +38,7 @@ namespace operators {
  */
 static std::unordered_set<std::string> InplaceOpSet = {
     "sigmoid", "exp",        "relu",  "tanh",      "sqrt",         "ceil",
-    "floor",   "reciprocal", "relu6", "soft_relu", "hard_sigmoid",
-};
+    "floor",   "reciprocal", "relu6", "soft_relu", "hard_sigmoid", "leay_relu"};
 
 /* The following operator can be used to process SelectedRows, because the
  * output of those operator for zero is zero too.
@@ -784,12 +783,17 @@ struct LeakyReluGradFunctor : public BaseActivationFunctor<T> {
   typename BaseActivationFunctor<T>::AttrPair GetAttrs() {
     return {{"alpha", &alpha}};
   }
+  bool Inplace() const { return IsInplace("leaky_relu"); }
   template <typename Device, typename X, typename Out, typename dOut,
             typename dX>
   void operator()(Device d, X x, Out out, dOut dout, dX dx) const {
+    // auto temp1 = static_cast<T>(alpha) *
+    //              (x < static_cast<T>(0)).template cast<T>().eval();
+    // auto temp2 = (x >= static_cast<T>(0)).template cast<T>().eval();
+    // dx.device(d) = dout * (temp1 + temp2).template cast<T>();
     auto temp1 = static_cast<T>(alpha) *
-                 (x < static_cast<T>(0)).template cast<T>().eval();
-    auto temp2 = (x >= static_cast<T>(0)).template cast<T>().eval();
+                 (out < static_cast<T>(0)).template cast<T>().eval();
+    auto temp2 = (out >= static_cast<T>(0)).template cast<T>().eval();
     dx.device(d) = dout * (temp1 + temp2).template cast<T>();
   }
 };

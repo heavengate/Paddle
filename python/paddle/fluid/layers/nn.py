@@ -7899,7 +7899,7 @@ def leaky_relu(x, alpha=0.02, name=None):
             y = fluid.layers.leaky_relu(x, alpha=0.01)
     """
     helper = LayerHelper('leaky_relu', **locals())
-    out = helper.create_variable_for_type_inference(dtype=x.dtype)
+    out = x
     helper.append_op(
         type='leaky_relu',
         inputs={'X': x},
