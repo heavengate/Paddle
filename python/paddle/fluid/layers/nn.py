@@ -209,6 +209,7 @@ __all__ = [
     'unfold',
     'deformable_roi_pooling',
     'shard_index',
+    'farthest_point_sampling',
 ]
 
 kIgnoreIndex = -100
@@ -12658,3 +12659,35 @@ def shard_index(input, index_num, nshards, shard_id, ignore_value=-1):
         },
         stop_gradient=True)
     return out
+
+
+def farthest_point_sampling(input, sampled_point_num):
+    '''
+    Sampling point based on its max eucliden distance with other points. 
+    
+    Args:
+        input (Variable): input point cloud dataset with shape (B, N, 3)
+            B is batch size, N is points's nums, 3 is (x,y,z) coordinate
+        sampled_point_num (int): sampled points's nums
+
+    Retrun:
+        output (Variable): return sampled points with shape (B, M, 3)
+            B is batch size, M is points's nums, 3 is (x,y,z) coordinate
+
+    Examples:
+        .. code-block:: python
+        x = fluid.layers.data(name='data', shape=(2,100,3), dtype='float32')
+        sampled_points = fluid.layers.farthest_point_sampling(
+            x, 50
+        )
+    '''
+
+    helper = LayerHelper('farthest_point_sampling', **locals())
+    dtype = helper.input_type()
+    op_out = helper.create_variable_for_type_inference(dtype)
+    helper.append_op(
+        type='farthest_point_sampling',
+        inputs={'X': input},
+        outputs={'Output': op_out},
+        attrs={'sampled_point_num': sampled_point_num})
+    return op_out
