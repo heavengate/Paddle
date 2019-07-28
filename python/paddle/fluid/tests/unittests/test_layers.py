@@ -2103,6 +2103,14 @@ class TestBook(LayerTest):
             output = layers.resize_trilinear(x, scale=2.1)
             return (output)
 
+    def make_three_nn(self):
+        with program_guard(fluid.default_main_program(),
+                           fluid.default_startup_program()):
+            x = self._get_data(name='x', shape=[16, 3], dtype="float32")
+            known = self._get_data(name='known', shape=[8, 3], dtype="float32")
+            dist, idx = layers.three_nn(x, known)
+            return (dist, idx)
+
     def make_polygon_box_transform(self):
         with program_guard(fluid.default_main_program(),
                            fluid.default_startup_program()):

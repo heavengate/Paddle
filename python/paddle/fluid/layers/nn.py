@@ -124,6 +124,7 @@ __all__ = [
     'resize_bilinear',
     'resize_trilinear',
     'resize_nearest',
+    'three_nn',
     'gather',
     'gather_nd',
     'scatter',
@@ -10386,6 +10387,53 @@ def image_resize_short(input, out_short_len, resample='BILINEAR'):
         float(out_shape[long_idx]) * (float(out_short_len) / float(hw[
             short_idx])) + 0.5)
     return image_resize(input=input, out_shape=out_shape, resample=resample)
+
+
+def three_nn(input, known, eps=1e-10, name=None):
+    """
+    **Three Nearest Neighbor Layer**
+
+    This operator samples the top-3 nearest neighbor of each point
+    coordinates specified by Input(X) between known point coordinates
+    specified by Input(Known) and calcualte the distance between these
+    nearest neighbors.
+
+    Args:
+        input (Variable): The input tensor of three_nn operator. This
+                          is a 3-D tensor with shape of [B, N, 3].
+        known (Variable): The input tensor of known points of three_nn
+                          operator. This is a 3-D tensor with shape of
+                          [B, M, 3].
+        name(str|None): A name for this layer(optional). If set None, the layer
+                        will be named automatically.
+
+    Returns:
+        distance (Variable): The output distance tensor of three_nn operator.
+                             This is a 3-D tensor with shape of [B, N, 3].
+        idx (Variable): The output index tensor of three_nn operator.
+                             This is a 3-D tensor with shape of [B, N, 3].
+
+    Examples:
+
+        .. code-block:: python
+
+            import paddle.fluid as fluid
+            x = fluid.layers.data(name='x', shape=[16, 3], dtype='float32')
+            index = fluid.layers.data(name='index', shape=[32, 3], dtype='int32')
+            distance, idx = fluid.layers.three_nn(input, known)
+    """
+    helper = LayerHelper('three_nn', **locals())
+    dtype = helper.input_dtype()
+    dist = helper.create_variable_for_type_inference(dtype)
+    idx = helper.create_variable_for_type_inference(dtype)
+    helper.append_op(
+        type="three_nn",
+        inputs={"X": input,
+                "Known": known},
+        outputs={"Distance": dist,
+                 "Idx": idx},
+        attrs={'eps': eps})
+    return (dist, idx)
 
 
 def gather(input, index, overwrite=True):
