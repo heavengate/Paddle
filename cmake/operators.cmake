@@ -119,7 +119,7 @@ function(op_library TARGET)
 "fusion_transpose_flatten_concat_op" "fusion_conv_inception_op"
 "sync_batch_norm_op" "dgc_op" "fused_fc_elementwise_layernorm_op"
 "multihead_matmul_op" "farthest_point_sampling_op" "group_points_op"
-"three_nn_op" "three_interp_op")
+"three_nn_op" "three_interp_op" "gather_point_op")
         if ("${TARGET}" STREQUAL "${manual_pybind_op}")
             set(pybind_flag 1)
         endif()
