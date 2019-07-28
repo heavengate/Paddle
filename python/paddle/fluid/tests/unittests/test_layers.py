@@ -2111,6 +2111,16 @@ class TestBook(LayerTest):
             dist, idx = layers.three_nn(x, known)
             return (dist, idx)
 
+    def make_three_interp(self):
+        with program_guard(fluid.default_main_program(),
+                           fluid.default_startup_program()):
+            x = self._get_data(name='x', shape=[16, 32], dtype="float32")
+            weight = self._get_data(
+                name='weight', shape=[32, 3], dtype="float32")
+            idx = self._get_data(name='idx', shape=[32, 3], dtype="int32")
+            out = layers.three_interp(x, weight, idx)
+            return (out)
+
     def make_polygon_box_transform(self):
         with program_guard(fluid.default_main_program(),
                            fluid.default_startup_program()):

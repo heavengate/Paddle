@@ -125,6 +125,7 @@ __all__ = [
     'resize_trilinear',
     'resize_nearest',
     'three_nn',
+    'three_interp',
     'gather',
     'gather_nd',
     'scatter',
@@ -10419,7 +10420,7 @@ def three_nn(input, known, eps=1e-10, name=None):
 
             import paddle.fluid as fluid
             x = fluid.layers.data(name='x', shape=[16, 3], dtype='float32')
-            index = fluid.layers.data(name='index', shape=[32, 3], dtype='int32')
+            known = fluid.layers.data(name='known', shape=[32, 3], dtype='float32')
             distance, idx = fluid.layers.three_nn(input, known)
     """
     helper = LayerHelper('three_nn', **locals())
@@ -10434,6 +10435,49 @@ def three_nn(input, known, eps=1e-10, name=None):
                  "Idx": idx},
         attrs={'eps': eps})
     return (dist, idx)
+
+
+def three_interp(input, weight, idx, name=None):
+    """
+    **Three Interpolate Layer**
+
+    This operator calculate interpolate results from input, weight and
+    index.
+
+    Args:
+        input (Variable): The input tensor of three_interp operator. This
+                          is a 3-D tensor with shape of [B, M, C].
+        weight (Variable): The weight tensor of three_interp operator. This
+                          is a 3-D tensor with shape of [B, N, 3].
+        idx (Variable): The index tensor of three_interp operator. This
+                          is a 3-D tensor with shape of [B, N, 3].
+        name(str|None): A name for this layer(optional). If set None, the layer
+                        will be named automatically.
+
+    Returns:
+        output (Variable): The output tensor of three_interp operator.
+                             This is a 3-D tensor with shape of [B, N, C].
+
+    Examples:
+
+        .. code-block:: python
+
+            import paddle.fluid as fluid
+            x = fluid.layers.data(name='x', shape=[16, 3], dtype='float32')
+            weight = fluid.layers.data(name='weight', shape=[32, 3], dtype='float32')
+            index = fluid.layers.data(name='index', shape=[32, 3], dtype='int32')
+            distance, idx = fluid.layers.three_interp(x, weight, index)
+    """
+    helper = LayerHelper('three_interp', **locals())
+    dtype = helper.input_dtype()
+    out = helper.create_variable_for_type_inference(dtype)
+    helper.append_op(
+        type="three_interp",
+        inputs={"X": input,
+                "Weight": weight,
+                "Idx": idx},
+        outputs={"Out": out, })
+    return out
 
 
 def gather(input, index, overwrite=True):
