@@ -55,7 +55,9 @@ if (NOT WITH_MKL)
 endif()
 
 register_operators(EXCLUDES py_func_op warpctc_op dgc_op conv_fusion_op
-	sync_batch_norm_op multihead_matmul_op farthest_point_sampling_op group_points_op three_nn_op ${OP_ONLY_MKL} DEPS ${OP_HEADER_DEPS} ${OP_PREFETCH_DEPS})
+	sync_batch_norm_op multihead_matmul_op farthest_point_sampling_op
+  group_points_op three_nn_op
+  ${OP_ONLY_MKL} DEPS ${OP_HEADER_DEPS} ${OP_PREFETCH_DEPS})
 
 if (WITH_GPU)
     # warpctc_op needs cudnn 7 above
