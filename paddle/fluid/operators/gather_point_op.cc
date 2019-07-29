@@ -35,8 +35,7 @@ class GatherPointOp : public framework::OperatorWithKernel {
   framework::OpKernelType GetExpectedKernelType(
       const framework::ExecutionContext &ctx) const override {
     auto input_data_type = ctx.Input<Tensor>("X")->type();
-    return framework::OpKernelType(input_data_type, ctx.device_context());
-    // return framework::OpKernelType(input_data_type, ctx.GetPlace());
+    return framework::OpKernelType(input_data_type, ctx.GetPlace());
   }
 };
 
