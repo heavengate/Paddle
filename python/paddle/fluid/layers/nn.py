@@ -10568,10 +10568,10 @@ def gather_point(input, index):
     Args:
         input (Variable): The source input with rank>=1, This
                           is a 3-D tensor with shape of [B, N, 3].
-        index (Variable): The index input with shape = [B, M].
+        index (Variable): The index input with shape of [B, M].
       
     Returns:
-        output (Variable): The output is a tensor with shape = [B,M].
+        output (Variable): The output is a tensor with shape of [B,M].
     Examples:
         .. code-block:: python
             import paddle.fluid as fluid
