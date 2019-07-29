@@ -101,6 +101,7 @@ __all__ = [
     'multiplex',
     'layer_norm',
     'group_norm',
+    'group_points',
     'spectral_norm',
     'softmax_with_cross_entropy',
     'smooth_l1',
@@ -4772,6 +4773,44 @@ def group_norm(input,
         })
 
     return helper.append_activation(group_norm_out)
+
+
+def group_points(input, idx, name=None):
+    """
+    **Group Points Layer**
+
+    This operator group input points with index.
+
+    Args:
+        input (Variable): The input tensor of three_interp operator. This
+                          is a 3-D tensor with shape of [B, N, C].
+        idx (Variable): The index tensor of three_interp operator. This
+                          is a 3-D tensor with shape of [B, M, S].
+        name(str|None): A name for this layer(optional). If set None, the layer
+                        will be named automatically.
+
+    Returns:
+        output (Variable): The output tensor of three_interp operator.
+                             This is a 4-D tensor with shape of [B, M, S, C].
+
+    Examples:
+
+        .. code-block:: python
+
+            import paddle.fluid as fluid
+            x = fluid.layers.data(name='x', shape=[16, 3], dtype='float32')
+            index = fluid.layers.data(name='index', shape=[32, 3], dtype='int32')
+            out  = fluid.layers.three_interp(x, index)
+    """
+    helper = LayerHelper('group_points', **locals())
+    dtype = helper.input_dtype()
+    out = helper.create_variable_for_type_inference(dtype)
+    helper.append_op(
+        type="group_points",
+        inputs={"X": input,
+                "Idx": idx},
+        outputs={"Out": out, })
+    return out
 
 
 @templatedoc()

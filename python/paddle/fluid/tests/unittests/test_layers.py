@@ -2110,6 +2110,14 @@ class TestBook(LayerTest):
             output = layers.polygon_box_transform(input=x)
             return (output)
 
+    def make_group_points(self):
+        with program_guard(fluid.default_main_program(),
+                           fluid.default_startup_program()):
+            x = self._get_data(name='x', shape=[16, 32], dtype="float32")
+            idx = self._get_data(name='idx', shape=[32, 32], dtype="int32")
+            out = layers.group_points(x, idx)
+            return (out)
+
     def make_l2_normalize(self):
         with program_guard(fluid.default_main_program(),
                            fluid.default_startup_program()):
