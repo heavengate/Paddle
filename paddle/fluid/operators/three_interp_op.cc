@@ -44,7 +44,7 @@ class ThreeInterpOp : public framework::OperatorWithKernel {
                       "X and Weight dim[0] should be equal.");
 
     auto dim_idx = ctx->GetInputDim("Idx");  // [B, N, 3]
-    PADDLE_ENFORCE_EQ(dim_weight.size(), 3, "Idx's dimension must be 3");
+    PADDLE_ENFORCE_EQ(dim_idx.size(), 3, "Idx's dimension must be 3");
 
     for (int i = 0; i < 3; i++) {
       PADDLE_ENFORCE_EQ(dim_weight[i], dim_idx[i],
