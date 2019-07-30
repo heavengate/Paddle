@@ -10466,7 +10466,7 @@ def three_interp(input, weight, idx, name=None):
             x = fluid.layers.data(name='x', shape=[16, 3], dtype='float32')
             weight = fluid.layers.data(name='weight', shape=[32, 3], dtype='float32')
             index = fluid.layers.data(name='index', shape=[32, 3], dtype='int32')
-            distance, idx = fluid.layers.three_interp(x, weight, index)
+            out = fluid.layers.three_interp(x, weight, index)
     """
     helper = LayerHelper('three_interp', **locals())
     dtype = helper.input_dtype()
