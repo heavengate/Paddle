@@ -55,7 +55,10 @@ if (NOT WITH_MKL)
 endif()
 
 register_operators(EXCLUDES py_func_op warpctc_op dgc_op conv_fusion_op
-	sync_batch_norm_op multihead_matmul_op ${OP_ONLY_MKL} DEPS ${OP_HEADER_DEPS} ${OP_PREFETCH_DEPS})
+	sync_batch_norm_op multihead_matmul_op farthest_point_sampling_op
+  group_points_op three_nn_op three_interp_op gather_point_op
+  query_ball_op roi_pool_3d_op
+  ${OP_ONLY_MKL} DEPS ${OP_HEADER_DEPS} ${OP_PREFETCH_DEPS})
 
 if (WITH_GPU)
     # warpctc_op needs cudnn 7 above
@@ -75,6 +78,20 @@ if (WITH_GPU)
     endif()
     op_library(multihead_matmul_op)
     file(APPEND ${pybind_file} "USE_CUDA_ONLY_OP(multihead_matmul);\n")
+    op_library(farthest_point_sampling_op)
+    file(APPEND ${pybind_file} "USE_CUDA_ONLY_OP(farthest_point_sampling);\n")
+    op_library(group_points_op)
+    file(APPEND ${pybind_file} "USE_CUDA_ONLY_OP(group_points);\n")
+    op_library(three_nn_op)
+    file(APPEND ${pybind_file} "USE_CUDA_ONLY_OP(three_nn);\n")
+    op_library(three_interp_op)
+    file(APPEND ${pybind_file} "USE_CUDA_ONLY_OP(three_interp);\n")
+    op_library(gather_point_op)
+    file(APPEND ${pybind_file} "USE_CUDA_ONLY_OP(gather_point);\n")
+    op_library(query_ball_op)
+    file(APPEND ${pybind_file} "USE_CUDA_ONLY_OP(query_ball);\n")
+    op_library(roi_pool_3d_op)
+    file(APPEND ${pybind_file} "USE_CUDA_ONLY_OP(roi_pool_3d);\n")
 else()
     op_library(warpctc_op DEPS dynload_warpctc sequence_padding sequence_scale)
 endif()
