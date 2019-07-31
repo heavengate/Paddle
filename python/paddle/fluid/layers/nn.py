@@ -4800,7 +4800,7 @@ def group_points(input, idx, name=None):
             import paddle.fluid as fluid
             x = fluid.layers.data(name='x', shape=[16, 3], dtype='float32')
             index = fluid.layers.data(name='index', shape=[32, 3], dtype='int32')
-            out  = fluid.layers.three_interp(x, index)
+            out  = fluid.layers.group_points(x, index)
     """
     helper = LayerHelper('group_points', **locals())
     dtype = helper.input_dtype()
