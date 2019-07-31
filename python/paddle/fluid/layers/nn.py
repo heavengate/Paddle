@@ -229,6 +229,7 @@ __all__ = [
     'mse_loss',
     'uniform_random',
     'farthest_point_sampling',
+    'query_ball',
 ]
 
 kIgnoreIndex = -100
@@ -17460,3 +17461,41 @@ def farthest_point_sampling(input, sampled_point_num):
         outputs={'Output': op_out},
         attrs={'sampled_point_num': sampled_point_num})
     return op_out
+
+
+def query_ball(input, new_points, radius, n_sample):
+    """
+    **Query Ball Layer**
+
+    Output is a tensor with the indicies of the features that form the query balls.
+
+    Args:
+        input(Variable): XYZ coordinates of features with shape of [B,N,3].
+        new_points(Variable): Centers coordinates of the ball query with shape of [B,M,3].
+        radius(float|Variable): Radius of the balls.
+        n_sample(int|Variable): Maximum number of features in the balls.
+    Return:
+        output(Variable): Tensor with the indicies of the features that form the query balls,with shape of [B,M,n_sample]
+
+    Examples:
+        .. code-block::python
+
+            import paddle.fluid as fluid
+            x = fluid.layers.data(name='points',shape=[-1,5,3],dtype='float32')
+            new_points = fluid.layers.data(name='new_points', shape=[-1,2,3], dtype='float32')
+            output = fluid.layers.query_ball(x,new_points,radius=4.0,n_sample=5)
+
+
+
+    """
+    helper = LayerHelper('query_ball', **locals())
+    dtype = helper.input_dtype()
+    out = helper.create_variable_for_type_inference(dtype)
+    helper.append_op(
+        type="query_ball",
+        inputs={"Points": input,
+                "New_Points": new_points},
+        attrs={"N_sample": n_sample,
+               "Radius": radius},
+        outputs={"Output": out})
+    return out
