@@ -52,7 +52,7 @@ class ThreeInterpOp : public framework::OperatorWithKernel {
     }
 
     // output: [B, N, C]
-    std::vector<int64_t> dim_out({dim_x[0], dim_idx[1], dim_idx[2]});
+    std::vector<int64_t> dim_out({dim_x[0], dim_idx[1], dim_x[2]});
     ctx->SetOutputDim("Out", framework::make_ddim(dim_out));
   }
 
