@@ -47,8 +47,18 @@ class TestGatherPointOp(OpTest):
         self.index_type = "int32"
 
     def test_check_output(self):
-        place = core.CUDAPlace(0)
-        self.check_output_with_place(place, atol=1e-1)
+        if core.is_compiled_with_cuda():
+            place = core.CUDAPlace(0)
+            self.check_output_with_place(place, atol=1e-1)
+
+    def test_check_grad(self):
+        if core.is_compiled_with_cuda():
+            place = core.CUDAPlace(0)
+            self.check_grad_with_place(
+                place, {'X'},
+                'Output',
+                max_relative_error=0.05,
+                no_grad_set=['Index'])
 
 
 class TestCase1(TestGatherPointOp):

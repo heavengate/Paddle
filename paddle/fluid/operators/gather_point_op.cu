@@ -11,6 +11,8 @@ limitations under the License. */
 
 #include "paddle/fluid/framework/eigen.h"
 #include "paddle/fluid/framework/op_registry.h"
+#include "paddle/fluid/operators/math/math_function.h"
+#include "paddle/fluid/platform/cuda_primitives.h"
 
 namespace paddle {
 namespace operators {
@@ -26,9 +28,27 @@ __global__ void GatherPointKernel(int b, int n, int m,
     for (int j = blockIdx.y * blockDim.x + threadIdx.x; j < m;
          j += blockDim.x * gridDim.y) {
       int a = idx[i * m + j];
-      out[(i * m + j) * 3 + 0] = inp[(i * n + a) * 3 + 0];
-      out[(i * m + j) * 3 + 1] = inp[(i * n + a) * 3 + 1];
-      out[(i * m + j) * 3 + 2] = inp[(i * n + a) * 3 + 2];
+      for (int k = 0; k < 3; k++) {
+        out[(i * m + j) * 3 + k] = inp[(i * n + a) * 3 + k];
+      }
+    }
+  }
+}
+
+template <typename T>
+__global__ void GatherPointGradKernel(int b, int n, int m,
+                                      const T *__restrict__ out_grad,
+                                      const int *__restrict__ idx,
+                                      T *__restrict__ in_grad) {
+  for (int i = blockIdx.x; i < b; i += gridDim.x) {
+    for (int j = blockIdx.y * blockDim.x + threadIdx.x; j < m;
+         j += blockDim.x * gridDim.y) {
+      int a = idx[i * m + j];
+      const T *out_grad_pos = &out_grad[(i * m + j) * 3];
+      T *in_grad_pos = &in_grad[(i * n + a) * 3];
+      for (int k = 0; k < 3; k++) {
+        platform::CudaAtomicAdd(&in_grad_pos[k], out_grad_pos[k]);
+      }
     }
   }
 }
@@ -42,26 +62,48 @@ class GatherPointOpCUDAKernel : public framework::OpKernel<T> {
     auto *points = ctx.Input<Tensor>("X");
     auto *index = ctx.Input<Tensor>("Index");
     auto *output = ctx.Output<Tensor>("Output");
+
     if (points->numel() == 0) return;
-    // allocate memory
-    output->mutable_data<T>(ctx.GetPlace());
+
+    const T *p_points = points->data<T>();
+    const int *p_index = index->data<int>();
+    T *p_out_points = output->mutable_data<T>(ctx.GetPlace());
 
     int batch_size = points->dims()[0];
     int n_points = points->dims()[1];
     int m_points = index->dims()[1];
 
-    // faltten
-    auto in_points = framework::EigenVector<T>::Flatten(*points);
-    const T *p_points = &(in_points(0));
-
-    auto in_index = framework::EigenVector<int>::Flatten(*index);
-    const int *p_index = &(in_index(0));
-
-    auto out_points = framework::EigenVector<T>::Flatten(*output);
-    T *p_out_points = &(out_points(0));
-
     GatherPointKernel<<<dim3(2, 8, 1), 512>>>(batch_size, n_points, m_points,
                                               p_points, p_index, p_out_points);
+  }
+};
+
+template <typename T>
+class GatherPointGradOpCUDAKernel : public framework::OpKernel<T> {
+ public:
+  void Compute(const framework::ExecutionContext &ctx) const override {
+    auto *points = ctx.Input<Tensor>("X");
+    auto *index = ctx.Input<Tensor>("Index");
+    auto *output_grad = ctx.Input<Tensor>(framework::GradVarName("Output"));
+    auto *points_grad = ctx.Output<Tensor>(framework::GradVarName("X"));
+
+    if (points->numel() == 0) return;
+
+    const T *p_output_grad = output_grad->data<T>();
+    const int *p_index = index->data<int>();
+    T *p_points_grad = points_grad->mutable_data<T>(ctx.GetPlace());
+
+    auto &device_ctx =
+        ctx.template device_context<platform::CUDADeviceContext>();
+    math::SetConstant<platform::CUDADeviceContext, T> zero;
+    zero(device_ctx, points_grad, static_cast<T>(0.0));
+
+    int batch_size = points->dims()[0];
+    int n_points = points->dims()[1];
+    int m_points = index->dims()[1];
+
+    GatherPointGradKernel<<<dim3(2, 8, 1), 512>>>(
+        batch_size, n_points, m_points, p_output_grad, p_index, p_points_grad);
   }
 };
 
@@ -72,3 +114,7 @@ namespace ops = paddle::operators;
 REGISTER_OP_CUDA_KERNEL(gather_point, ops::GatherPointOpCUDAKernel<float>,
                         ops::GatherPointOpCUDAKernel<double>,
                         ops::GatherPointOpCUDAKernel<int>);
+REGISTER_OP_CUDA_KERNEL(gather_point_grad,
+                        ops::GatherPointGradOpCUDAKernel<float>,
+                        ops::GatherPointGradOpCUDAKernel<double>,
+                        ops::GatherPointGradOpCUDAKernel<int>);
