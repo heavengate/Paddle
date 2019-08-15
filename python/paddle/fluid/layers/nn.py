@@ -17453,7 +17453,7 @@ def farthest_point_sampling(input, sampled_point_num):
     '''
 
     helper = LayerHelper('farthest_point_sampling', **locals())
-    dtype = helper.input_type()
+    dtype = input.dtype
     op_out = helper.create_variable_for_type_inference(dtype)
     helper.append_op(
         type='farthest_point_sampling',
