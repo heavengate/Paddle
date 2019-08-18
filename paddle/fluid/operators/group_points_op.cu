@@ -10,6 +10,7 @@
    limitations under the License. */
 
 #include "paddle/fluid/framework/op_registry.h"
+#include "paddle/fluid/operators/math/math_function.h"
 #include "paddle/fluid/platform/cuda_primitives.h"
 
 namespace paddle {
@@ -46,7 +47,8 @@ __global__ void KeGroupPointsBw(T* input_grad, const T* output_grad,
 
     int input_base_idx = bi * n * c;
     for (int i = 0; i < c; i++) {
-      input_grad[input_base_idx + idx[tid] * c + i] = output_grad[tid * c + i];
+      platform::CudaAtomicAdd(&input_grad[input_base_idx + idx[tid] * c + i],
+                              output_grad[tid * c + i]);
     }
   }
 }
@@ -101,6 +103,10 @@ class GroupPointsGradOpCUDAKernel : public framework::OpKernel<T> {
 
     auto* input_grad_data =
         input_grad->mutable_data<T>({b, n, c}, ctx.GetPlace());
+    auto& device_ctx =
+        ctx.template device_context<platform::CUDADeviceContext>();
+    math::SetConstant<platform::CUDADeviceContext, T> zero;
+    zero(device_ctx, input_grad, static_cast<T>(0.0));
 
     const int ms = m * s;
     int pixelNum = b * ms;
