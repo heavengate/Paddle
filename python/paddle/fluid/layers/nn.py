@@ -117,6 +117,7 @@ __all__ = [
     'pad_constant_like',
     'label_smooth',
     'roi_pool',
+    'roi_pool_3d',
     'roi_align',
     'dice_loss',
     'image_resize',
@@ -9351,6 +9352,60 @@ def roi_pool(input, rois, pooled_height=1, pooled_width=1, spatial_scale=1.0):
             "spatial_scale": spatial_scale
         })
     return pool_out
+
+
+@templatedoc()
+def roi_pool_3d(input,
+                pts_feature,
+                boxes3d,
+                pool_extra_width=1.0,
+                sampled_pt_num=512):
+    """
+    ${comment}
+
+    Args:
+        input (Variable): ${pts_comment}
+        pts_features (Variable): ${pts_feature_comment}
+        boxes3d (Variable): ${boxes3d_comment}
+        pool_extra_width (float): ${pool_extra_width_comment} Default: 1.0
+        sampled_pt_num (int): ${sampled_pt_num_comment} Default: 512
+
+    Returns:
+        Variable: ${out_comment}.
+
+    Examples:
+        .. code-block:: python
+
+            import paddle.fluid as fluid
+
+            x = fluid.layers.data(
+                name='x', shape=[8, 112, 112], dtype='float32')
+            rois = fluid.layers.data(
+                name='roi', shape=[4], lod_level=1, dtype='float32')
+            pool_out = fluid.layers.roi_pool(
+                input=x,
+                rois=rois,
+                pooled_height=7,
+                pooled_width=7,
+                spatial_scale=1.0)
+
+    """
+    helper = LayerHelper('roi_pool_3d', **locals())
+    dtype = helper.input_dtype()
+    pool_out = helper.create_variable_for_type_inference(dtype)
+    pooled_empty_flag = helper.create_variable_for_type_inference(dtype)
+    helper.append_op(
+        type="roi_pool_3d",
+        inputs={"pts": input,
+                "pts_feature": pts_feature,
+                "boxes3d": boxes3d},
+        outputs={"Out": pool_out,
+                 "pooled_empty_flag": pooled_empty_flag},
+        attrs={
+            "pool_extra_width": pool_extra_width,
+            "sampled_pt_num": sampled_pt_num
+        })
+    return pool_out, pooled_empty_flag
 
 
 @templatedoc()
