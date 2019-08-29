@@ -19,7 +19,6 @@ namespace paddle {
 namespace operators {
 
 using Tensor = framework::Tensor;
-// using LoDTensor = framework::LoDTensor;
 
 class ROIPool3DOp : public framework::OperatorWithKernel {
  public:
@@ -33,12 +32,6 @@ class ROIPool3DOp : public framework::OperatorWithKernel {
                    "Input(pts_feature) of ROIPool3DOp should not be null.");
     PADDLE_ENFORCE(ctx->HasInput("boxes3d"),
                    "Input(boxes3d) of ROIPool3DOp should not be null.");
-    // PADDLE_ENFORCE(ctx->HasInput("pool_extra_width"),
-    //               "Input(pool_extra_width) of ROIPool3DOp should not be
-    //               null.");
-    // PADDLE_ENFORCE(ctx->HasInput("sampled_pt_num"),
-    //               "Input(sampled_pt_num) of ROIPool3DOp should not be
-    //               null.");
     PADDLE_ENFORCE(ctx->HasOutput("Out"),
                    "Output(Out) of ROIPool3DOp should not be null.");
     PADDLE_ENFORCE(
