@@ -91,11 +91,12 @@ class ROIPool3DOpMaker : public framework::OpProtoAndCheckerMaker {
               "(B, M, sampled_pt_num, 3+C).");
     AddOutput("pooled_empty_flag",
               "(Tensor), "
-              "pooled_empty_flag")  // todo:add annotation by yxt
+              "The pooled empty flag of ROIPoolOP is a 2-D tensor with shape"
+              "(B,M)")
         .AsIntermediate();
     AddAttr<float>("pool_extra_width",
                    "(float, default 1.0), "
-                   "what is pool extra width")
+                   "What is pool extra width")
         .SetDefault(1.0);
     AddAttr<int>("sampled_pt_num",
                  "(int, default 512),"
@@ -105,21 +106,11 @@ class ROIPool3DOpMaker : public framework::OpProtoAndCheckerMaker {
     AddComment(R"DOC(
 **ROIPool3D Operator**
 
-Region of interest pooling (also known as RoI pooling) is to perform
-is to perform max pooling on inputs of nonuniform sizes to obtain
-fixed-size feature maps (e.g. 7*7).
-
-The operator has three steps:
-
-1. Dividing each region proposal into equal-sized sections with
-   the pooled_width and pooled_height
-
-2. Finding the largest value in each section
-
-3. Copying these max values to the output buffer
-
-ROI Pooling for Faster-RCNN. The link below is a further introduction: 
-https://stackoverflow.com/questions/43430056/what-is-roi-layer-in-fast-rcnn
+After obtaining 3D bounding box proposals, refine the box locations 
+and orientations based on the previously generated box proposals. 
+To learn more specific local features of each proposal, ROIPool3d propose 
+to pool 3D points and their corresponding point features from stage-1 
+according to the location of each 3D proposal.
     )DOC");
   }
 };

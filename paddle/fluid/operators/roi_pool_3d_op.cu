@@ -75,8 +75,6 @@ __global__ void assign_pts_to_box3d(int batch_size, int pts_num, int boxes_num,
       boxes3d[box_offset + 6], 10.0);
 
   pts_assign[assign_idx] = cur_in_flag;
-  // printf("bs=%d, pt=%d, in=%d\n", bs_idx, pt_idx, pts_assign[bs_idx * pts_num
-  // + pt_idx]);
 }
 
 __global__ void get_pooled_idx(int batch_size, int pts_num, int boxes_num,
@@ -171,7 +169,6 @@ class ROIPool3dOpCUDAKernel : public framework::OpKernel<T> {
     auto *pts = ctx.Input<Tensor>("pts");
     auto *pts_feature = ctx.Input<Tensor>("pts_feature");
     auto *boxes3d = ctx.Input<Tensor>("boxes3d");
-    // auto *sample_num = ctx.Input<int>("sampled_pt_num");
     auto *output = ctx.Output<Tensor>("Out");
     auto *pooled_empty_flag = ctx.Output<Tensor>("pooled_empty_flag");
 
@@ -190,13 +187,9 @@ class ROIPool3dOpCUDAKernel : public framework::OpKernel<T> {
     int feature_in_len = pts_feature->dims()[2];
     int sampled_pts_num = output->dims()[2];
 
-    // printf("batch_size=%d, pts_num=%d, boxes_num=%d\n", batch_size, pts_num,
-    // boxes_num);
     int *pts_assign = NULL;
     cudaMalloc(&pts_assign, batch_size * pts_num * boxes_num *
                                 sizeof(int));  // (batch_size, N, M)
-    // cudaMemset(&pts_assign, -1, batch_size * pts_num * boxes_num *
-    // sizeof(int));
 
     dim3 blocks(DIVUP(pts_num, THREADS_PER_BLOCK), boxes_num,
                 batch_size);  // blockIdx.x(col), blockIdx.y(row)
