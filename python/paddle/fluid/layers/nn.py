@@ -4161,6 +4161,10 @@ def batch_norm(input,
         if build_strategy.sync_batch_norm=True, the batch_norm in network will use 
         sync_batch_norm automatically.
 
+    Note:
+        if build_strategy.enable_inplace=True and act is in ['leaky_relu', 'elu'],
+        the batch_norm in network will use inplace activative batch_nrom automatically.
+
     Args:
         input(variable): The rank of input variable can be 2, 3, 4, 5. The data type 
             is float16 or float32 or float64.
