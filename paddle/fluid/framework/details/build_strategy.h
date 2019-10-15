@@ -89,7 +89,7 @@ struct BuildStrategy {
   bool fuse_elewise_add_act_ops_{false};
   // Fuse_all_optimizer_ops and fuse_all_reduce_ops require that gradients
   // should not be sparse types
-  bool fuse_all_optimizer_ops_{true};
+  bool fuse_all_optimizer_ops_{false};
   bool fuse_all_reduce_ops_{false};
   // fuse_relu_depthwise_conv can fuse the `relu ->
   // depthwise_conv`
@@ -115,7 +115,7 @@ struct BuildStrategy {
   boost::optional<bool> memory_optimize_{boost::none};
 
   // Turn on inplace by default.
-  bool enable_inplace_{true};
+  bool enable_inplace_{false};
 
   // FIXME(zcd): is_distribution_ is a temporary field, because in pserver mode,
   // num_trainers is 1, so the current fields of build_strategy doesn't tell if
