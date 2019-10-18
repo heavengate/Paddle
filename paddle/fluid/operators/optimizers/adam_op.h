@@ -367,7 +367,20 @@ class AdamOpKernel : public framework::OpKernel<T> {
     int64_t min_row_size_to_use_multithread =
         ctx.Attr<int64_t>("min_row_size_to_use_multithread");
     bool lazy_mode = ctx.Attr<bool>("lazy_mode");
-    T beta1 = static_cast<T>(ctx.Attr<float>("beta1"));
+    T beta1;
+    if (ctx.HasInput("Beta1")) {
+      auto* beta1_var = ctx.Input<LoDTensor>("Beta1");
+      auto* beta1_data = beta1_var->data<float>();
+      framework::Tensor cpu_beta1_var;
+      if (platform::is_gpu_place(beta1_var->place())) {
+        TensorCopySync(*beta1_var, platform::CPUPlace(), &cpu_beta1_var);
+        beta1_data = cpu_beta1_var.data<float>();
+      }
+      beta1 = static_cast<T>(beta1_data[0]);
+    } else {
+      beta1 = static_cast<T>(ctx.Attr<float>("beta1"));
+    }
+    LOG(ERROR) << "beta1: " << beta1;
     T beta2 = static_cast<T>(ctx.Attr<float>("beta2"));
     T epsilon = static_cast<T>(ctx.Attr<float>("epsilon"));
     auto& param = Ref(ctx.Input<LoDTensor>("Param"), "Must set Param");

@@ -1320,6 +1320,7 @@ class AdamOptimizer(Optimizer):
                  learning_rate=0.001,
                  beta1=0.9,
                  beta2=0.999,
+                 actual_beta1=None,
                  epsilon=1e-8,
                  regularization=None,
                  name=None,
@@ -1335,6 +1336,7 @@ class AdamOptimizer(Optimizer):
         self.type = "adam"
         self._beta1 = beta1
         self._beta2 = beta2
+        self._actual_beta1 = actual_beta1
         self._epsilon = epsilon
         self._lazy_mode = lazy_mode
 
@@ -1380,7 +1382,8 @@ class AdamOptimizer(Optimizer):
                 "Moment1": moment1,
                 "Moment2": moment2,
                 "Beta1Pow": beta1_pow_acc,
-                "Beta2Pow": beta2_pow_acc
+                "Beta2Pow": beta2_pow_acc,
+                "Beta1": self._actual_beta1,
             },
             outputs={
                 "ParamOut": param_and_grad[0],
@@ -1388,7 +1391,7 @@ class AdamOptimizer(Optimizer):
                 "Moment2Out": moment2
             },
             attrs={
-                "beta1": self._beta1,
+                # "beta1": self._beta1,
                 "beta2": self._beta2,
                 "epsilon": self._epsilon,
                 "lazy_mode": self._lazy_mode,

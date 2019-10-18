@@ -87,6 +87,7 @@ class AdamOpMaker : public framework::OpProtoAndCheckerMaker {
     AddInput("Moment2", "(Tensor) Input second moment");
     AddInput("Beta1Pow", "(Tensor) Input beta1 power accumulator");
     AddInput("Beta2Pow", "(Tensor) Input beta2 power accumulator");
+    AddInput("Beta1", "(Tensor) Input beta1");
 
     AddOutput("ParamOut", "(Tensor) Output parameter");
     AddOutput("Moment1Out", "(Tensor) Output first moment");
