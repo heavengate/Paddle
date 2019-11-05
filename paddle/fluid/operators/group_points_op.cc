@@ -32,17 +32,19 @@ class GroupPointsOp : public framework::OperatorWithKernel {
     PADDLE_ENFORCE(ctx->HasOutput("Out"),
                    "Output(Out) of GroupPointsOp should not be null.");
 
-    auto dim_x = ctx->GetInputDim("X");  // [B, N, C]
+    auto dim_x = ctx->GetInputDim("X");  // [B, C, N]
     PADDLE_ENFORCE_EQ(dim_x.size(), 3, "X's dimension must be 3");
 
-    auto dim_idx = ctx->GetInputDim("Idx");  // [B, N, S]
+    auto dim_idx = ctx->GetInputDim("Idx");  // [B, npoints, nsample]
     PADDLE_ENFORCE_EQ(dim_idx.size(), 3, "Idx's dimension must be 3");
 
     PADDLE_ENFORCE_EQ(dim_x[0], dim_idx[0],
                       "X and Idx dim[0] should be equal.");
 
-    // output: [B, M, S, C]
-    std::vector<int64_t> dim_out({dim_x[0], dim_idx[1], dim_idx[2], dim_x[2]});
+    // output: [B, C, M, S]
+    // printf("dim_x: (%ld, %ld, %ld)\n", dim_x[0], dim_x[1], dim_x[2]);
+    // printf("dim_idx: (%ld, %ld, %ld)\n", dim_idx[0], dim_idx[1], dim_idx[2]);
+    std::vector<int64_t> dim_out({dim_x[0], dim_x[1], dim_idx[1], dim_idx[2]});
     ctx->SetOutputDim("Out", framework::make_ddim(dim_out));
   }
 
@@ -59,13 +61,13 @@ class GroupPointsOpMaker : public framework::OpProtoAndCheckerMaker {
   void Make() override {
     AddInput("X",
              "The input tensor of group_points operator. "
-             "This is a 3-D tensor with shape of [B, N, C].");
+             "This is a 3-D tensor with shape of [B, C, N].");
     AddInput("Idx",
              "The input tensor of nearest neighbor index of group_points "
              "operator. This is a 3-D tensor with shape of [B, M, S].");
     AddOutput("Out",
               "The output tensor of group_points operator. "
-              "This is a 4-D tensor with shape of [B, M, S, C].");
+              "This is a 4-D tensor with shape of [B, C, M, S].");
 
     AddComment(R"DOC(
           This operator group input points with index.
