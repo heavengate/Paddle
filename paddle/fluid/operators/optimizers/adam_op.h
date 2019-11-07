@@ -380,7 +380,6 @@ class AdamOpKernel : public framework::OpKernel<T> {
     } else {
       beta1 = static_cast<T>(ctx.Attr<float>("beta1"));
     }
-    LOG(ERROR) << "beta1: " << beta1;
     T beta2 = static_cast<T>(ctx.Attr<float>("beta2"));
     T epsilon = static_cast<T>(ctx.Attr<float>("epsilon"));
     auto& param = Ref(ctx.Input<LoDTensor>("Param"), "Must set Param");
