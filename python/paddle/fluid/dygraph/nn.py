@@ -31,9 +31,23 @@ import numbers
 import logging
 
 __all__ = [
-    'Conv2D', 'Conv3D', 'Pool2D', 'Linear', 'BatchNorm', 'Embedding', 'GRUUnit',
-    'LayerNorm', 'NCE', 'PRelu', 'BilinearTensorProduct', 'Conv2DTranspose',
-    'Conv3DTranspose', 'GroupNorm', 'SpectralNorm', 'TreeConv'
+    'Conv2D',
+    'Conv3D',
+    'Pool2D',
+    'Linear',
+    'BatchNorm',
+    'Embedding',
+    'GRUUnit',
+    'LayerNorm',
+    'NCE',
+    'PRelu',
+    'BilinearTensorProduct',
+    'Conv2DTranspose',
+    'Conv3DTranspose',
+    'GroupNorm',
+    'SpectralNorm',
+    'TreeConv',
+    'DeformableConv2D',
 ]
 
 
@@ -2854,3 +2868,258 @@ class TreeConv(layers.Layer):
         else:
             pre_activation = out
         return self._helper.append_activation(pre_activation, act=self._act)
+
+
+class DeformableConv2D(layers.Layer):
+    """
+    This interface is used to construct a callable object of the ``DeformableConv2D`` class.
+    For more details, refer to code examples.
+    The deformable convolution2D layer calculates the output based on the 4-D input, filter
+    and strides, paddings, dilations, groups parameters, the deformable convolution operation
+    can be expressed as follow:
+
+    Deformable Convolution v2: 
+    
+    .. math::
+
+        y(p) = \sum_{k=1}^{K}{w_k * x(p + p_k + \Delta p_k) * \Delta m_k}
+
+    Deformable Convolution v1:
+    
+    .. math::
+
+        y(p) = \sum_{k=1}^{K}{w_k * x(p + p_k + \Delta p_k)}
+    
+    Where :math:`\Delta p_k` and :math:`\Delta m_k` are the learnable offset and modulation scalar for the k-th location, 
+    Which :math:`\Delta m_k` is one in deformable convolution v1. Please refer to `Deformable ConvNets v2: More Deformable, Better Results
+    <https://arxiv.org/abs/1811.11168v2>`_ and `Deformable Convolutional Networks <https://arxiv.org/abs/1703.06211>`_.
+    
+    Example:
+        - Input:
+
+          Input shape: :math:`(N, C_{in}, H_{in}, W_{in})`
+
+          Filter shape: :math:`(C_{out}, C_{in}, H_f, W_f)`
+
+          Offset shape: :math:`(N, 2 * deformable\_groups * H_f * H_w, H_{in}, W_{in})`
+
+          Mask shape: :math:`(N, deformable\_groups * H_f * H_w, H_{in}, W_{in})`
+
+        - Output:
+
+          Output shape: :math:`(N, C_{out}, H_{out}, W_{out})`
+
+        Where
+
+        .. math::
+
+            H_{out}&= \\frac{(H_{in} + 2 * paddings[0] - (dilations[0] * (H_f - 1) + 1))}{strides[0]} + 1 \\\\
+            W_{out}&= \\frac{(W_{in} + 2 * paddings[1] - (dilations[1] * (W_f - 1) + 1))}{strides[1]} + 1
+
+    Parameters:
+        input (Variable): The input image with [N, C, H, W] format. A Tensor with type
+            float32, float64.
+        offset (Variable): The input coordinate offset of deformable convolution layer.
+            A Tensor with type float32, float64.
+        Mask (Variable, Optional): The input mask of deformable convolution layer.
+            A Tensor with type float32, float64. It should be None when you use
+            deformable convolution v1.
+        num_filters(int): The number of filter. It is as same as the output
+            image channel.
+        filter_size (int|tuple): The filter size. If filter_size is a tuple,
+            it must contain two integers, (filter_size_H, filter_size_W).
+            Otherwise, the filter will be a square.
+        stride (int|tuple): The stride size. If stride is a tuple, it must
+            contain two integers, (stride_H, stride_W). Otherwise, the
+            stride_H = stride_W = stride. Default: stride = 1.
+        padding (int|tuple): The padding size. If padding is a tuple, it must
+            contain two integers, (padding_H, padding_W). Otherwise, the
+            padding_H = padding_W = padding. Default: padding = 0.
+        dilation (int|tuple): The dilation size. If dilation is a tuple, it must
+            contain two integers, (dilation_H, dilation_W). Otherwise, the
+            dilation_H = dilation_W = dilation. Default: dilation = 1.
+        groups (int): The groups number of the deformable conv layer. According to
+            grouped convolution in Alex Krizhevsky's Deep CNN paper: when group=2,
+            the first half of the filters is only connected to the first half
+            of the input channels, while the second half of the filters is only
+            connected to the second half of the input channels. Default: groups=1.
+        deformable_groups (int): The number of deformable group partitions.
+            Default: deformable_groups = 1.
+        im2col_step (int): Maximum number of images per im2col computation; 
+            The total batch size should be devisable by this value or smaller
+            than this value; if you face out of memory problem, you can try
+            to use a smaller value here.
+            Default: im2col_step = 64.
+        param_attr (ParamAttr, Optional): The parameter attribute for learnable parameters/weights
+            of deformable conv. If it is set to None or one attribute of ParamAttr,
+            deformable conv will create ParamAttr as param_attr.
+            If the Initializer of the param_attr is not set, the parameter is
+            initialized with :math:`Normal(0.0, std)`, and the 
+            :math:`std` is :math:`(\\frac{2.0 }{filter\_elem\_num})^{0.5}`. Default: None.
+        bias_attr (ParamAttr|bool, Optional): The parameter attribute for the bias of
+            deformable conv layer. If it is set to False, no bias will be added
+            to the output units. If it is set to None or one attribute of ParamAttr, conv2d
+            will create ParamAttr as bias_attr. If the Initializer of the bias_attr
+            is not set, the bias is initialized zero. Default: None.
+        modulated (bool): Make sure which version should be used between v1 and v2, where v2 is \
+            used while True. Default: True.
+        name(str, Optional): For details, please refer to :ref:`api_guide_Name`.
+                        Generally, no setting is required. Default: None.
+
+    Returns:
+        Variable: The tensor variable storing the deformable convolution \
+                  result. A Tensor with type float32, float64.
+
+    Raises:
+        ValueError: If the shapes of input, filter_size, stride, padding and
+                    groups mismatch.
+
+    Examples:
+        .. code-block:: python
+
+          #deformable conv v2:
+         
+          import paddle.fluid as fluid
+          C_in, H_in, W_in = 3, 32, 32
+          filter_size, deformable_groups = 3, 1
+          data = fluid.data(name='data', shape=[None, C_in, H_in, W_in], dtype='float32')
+          offset = fluid.data(name='offset', shape=[None, 2*deformable_groups*filter_size**2, H_in, W_in], dtype='float32')
+          mask = fluid.data(name='mask', shape=[None, deformable_groups*filter_size**2, H_in, W_in], dtype='float32')
+          out = fluid.layers.deformable_conv(input=data, offset=offset, mask=mask,
+                                             num_filters=2, filter_size=filter_size, padding=1, modulated=True)
+
+          #deformable conv v1:
+
+          import paddle.fluid as fluid
+          C_in, H_in, W_in = 3, 32, 32
+          filter_size, deformable_groups = 3, 1
+          data = fluid.data(name='data', shape=[None, C_in, H_in, W_in], dtype='float32')
+          offset = fluid.data(name='offset', shape=[None, 2*deformable_groups*filter_size**2, H_in, W_in], dtype='float32')
+          out = fluid.layers.deformable_conv(input=data, offset=offset, mask=None,
+                                             num_filters=2, filter_size=filter_size, padding=1, modulated=False)
+
+    """
+
+    def __init__(self,
+                 num_channels,
+                 num_filters,
+                 filter_size,
+                 stride=1,
+                 padding=0,
+                 dilation=1,
+                 groups=None,
+                 deformable_groups=None,
+                 im2col_step=None,
+                 param_attr=None,
+                 bias_attr=None,
+                 modulated=True,
+                 dtype='float32'):
+        assert param_attr is not False, "param_attr should not be False here."
+        super(DeformableConv2D, self).__init__()
+        self._num_channels = num_channels
+        self._num_filters = num_filters
+        self._filter_size = utils.convert_to_list(filter_size, 2, 'filter_size')
+        self._stride = utils.convert_to_list(stride, 2, 'stride')
+        self._padding = utils.convert_to_list(padding, 2, 'padding')
+        self._dilation = utils.convert_to_list(dilation, 2, 'dilation')
+        self._groups = groups
+        self._deformable_groups = deformable_groups
+        self._im2col_step = im2col_step
+        self._param_attr = param_attr
+        self._bias_attr = bias_attr
+        self._modulated = modulated
+        self._dtype = dtype
+
+        if self._groups is None:
+            num_filter_channels = self._num_channels
+        else:
+            if self._num_channels % self._groups != 0:
+                raise ValueError("num_channels must be divisible by groups.")
+            num_filter_channels = self._num_channels // self._groups
+
+        filter_shape = [self._num_filters, num_filter_channels
+                        ] + self._filter_size
+
+        def _get_default_param_initializer():
+            filter_elem_num = filter_size[0] * filter_size[
+                1] * self._num_channels
+            std = (2.0 / filter_elem_num)**0.5
+            return Normal(0.0, std, 0)
+
+        self.weight = self.create_parameter(
+            attr=self._param_attr,
+            shape=filter_shape,
+            dtype=self._dtype,
+            default_initializer=_get_default_param_initializer())
+
+        self.bias = self.create_parameter(
+            attr=self._bias_attr,
+            shape=[self._num_filters],
+            dtype=self._dtype,
+            is_bias=True)
+
+    def forward(self, input, offset, mask=None):
+        if in_dygraph_mode() and self._l_type == 'conv2d':
+            attrs = (
+                'strides',
+                self._stride,
+                'paddings',
+                self._padding,
+                'dilations',
+                self._dilation,
+                'groups',
+                self._groups or 1,
+                'deformable_groups',
+                self._deformable_groups or 1,
+                'im2col_step',
+                self._im2col_step if self._im2col_step else 64, )
+            if self._modulated:
+                assert mask is not None, "mask should be given if modulated is True"
+                out = core.ops.deformable_conv(input, offset, mask, self.weight,
+                                               *attrs)
+            else:
+                out = core.ops.deformable_conv_v1(input, offset, self.weight,
+                                                  *attrs)
+
+            return dygraph_utils._append_bias_in_dygraph(out, self.bias, 1)
+
+        out = helper.create_variable_for_type_inference(dtype)
+        if self._modulated:
+            assert mask is not None, "mask should be given if modulated is True"
+            helper.append_op(
+                type='deformable_conv',
+                inputs={
+                    'Input': input,
+                    'Filter': self.weight,
+                    'Offset': offset,
+                    'Mask': mask,
+                },
+                outputs={"Output": pre_bias},
+                attrs={
+                    'strides': stride,
+                    'paddings': padding,
+                    'dilations': dilation,
+                    'groups': groups,
+                    'deformable_groups': deformable_groups,
+                    'im2col_step': im2col_step,
+                })
+
+        else:
+            helper.append_op(
+                type='deformable_conv_v1',
+                inputs={
+                    'Input': input,
+                    'Filter': filter_param,
+                    'Offset': offset,
+                },
+                outputs={"Output": pre_bias},
+                attrs={
+                    'strides': stride,
+                    'paddings': padding,
+                    'dilations': dilation,
+                    'groups': groups,
+                    'deformable_groups': deformable_groups,
+                    'im2col_step': im2col_step,
+                })
+
+        return output
