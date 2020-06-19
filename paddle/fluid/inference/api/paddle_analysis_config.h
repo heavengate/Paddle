@@ -31,9 +31,9 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include "paddle_infer_declare.h"  // NOLINT
 
 /*! \file */
-
 // Here we include some header files with relative paths, for that in deploy,
 // the abstract path of this header file will be changed.
 #include "paddle_api.h"           // NOLINT
@@ -60,7 +60,7 @@ struct MkldnnQuantizerConfig;
 /// AnalysisConfig,
 /// and loading it into AnalysisPredictor.
 ///
-struct AnalysisConfig {
+struct PD_INFER_DECL AnalysisConfig {
   AnalysisConfig() = default;
   ///
   /// \brief Construct a new AnalysisConfig from another
@@ -347,6 +347,8 @@ struct AnalysisConfig {
   ///
   /// \brief Set the cache capacity of different input shapes for MKLDNN.
   /// Default value 0 means not caching any shape.
+  /// Please see MKL-DNN Data Caching Design Document:
+  /// https://github.com/PaddlePaddle/FluidDoc/blob/develop/doc/fluid/design/mkldnn/caching/caching.md
   ///
   /// \param capacity The cache capacity.
   ///

@@ -47,7 +47,8 @@ class SliceOp : public framework::OperatorWithKernel {
         // the output shape is determined by SliceKernel:Compute in runtime.
         return;
       } else {
-        // NOTE: A better way is needed to get accurate dims of tensor array.
+        // NOTE(liym27): A better way is needed to get accurate dims of tensor
+        // array.
         // The resulted dim of GetInputDim("Input") is the dim of the
         // last item written into TensorArray "Input". Maybe it's a bug to fix.
         ctx->SetOutputDim("Out", ctx->GetInputDim("Input"));
@@ -376,7 +377,7 @@ class SliceDoubleOpGradMaker : public framework::SingleGradOpMaker<T> {
   }
 };
 
-DECLARE_NO_NEED_BUFFER_VARS_INFERER(SliceOpGradNoNeedBufferVarsInference,
+DECLARE_NO_NEED_BUFFER_VARS_INFERER(SliceOpGradNoNeedBufferVarsInferer,
                                     "Input");
 
 }  // namespace operators
@@ -390,7 +391,7 @@ REGISTER_OPERATOR(slice, ops::SliceOp, ops::SliceOpMaker,
 REGISTER_OPERATOR(slice_grad, ops::SliceOpGrad,
                   ops::SliceDoubleOpGradMaker<paddle::framework::OpDesc>,
                   ops::SliceDoubleOpGradMaker<paddle::imperative::OpBase>,
-                  ops::SliceOpGradNoNeedBufferVarsInference,
+                  ops::SliceOpGradNoNeedBufferVarsInferer,
                   ops::SliceOpGradVarTypeInference);
 
 REGISTER_OP_CPU_KERNEL(
