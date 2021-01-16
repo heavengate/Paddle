@@ -45,7 +45,7 @@ def pin_memory(data):
     if isinstance(data, paddle.fluid.LoDTensor):
         if in_dygraph_mode():
             # LoDTensor -> paddle.Tensor(VarBase)
-            return core.VarBase(data)
+            return core.VarBase(data, place=paddle.CUDAPinnedPlace())
         else:
             data_ = data._pin_memory()
             del data
